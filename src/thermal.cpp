@@ -30,11 +30,15 @@ namespace Thermal {
   QDir base(root);
   const auto devices=base.entryInfoList(QDir::Dirs|QDir::NoDotAndDotDot,QDir::Name);
   static const QRegularExpression inputPattern(QStringLiteral("^temp([0-9]+)_input$"));
-  for (const QFileInfo &deviceInfo: devices) {
+  int deviceCount=0;
+ for (const QFileInfo &deviceInfo: devices) {
+  if(++deviceCount > 256) break;
    const QString path=deviceInfo.absoluteFilePath();
    const QString chip=readText(path+"/name").isEmpty()?deviceInfo.fileName():readText(path+"/name");
    QDir dev(path);
+   int sensorCount=0;
    for (const QString &file:dev.entryList({QStringLiteral("temp*_input")},QDir::Files,QDir::Name)) {
+    if(++sensorCount > 128 || out.size() >= 2048) break;
     const auto match=inputPattern.match(file);
     if (!match.hasMatch()) continue;
     double current=0;
