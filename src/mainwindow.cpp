@@ -74,22 +74,38 @@ QString interfaceCounter(const QString &name,const QString &counter){
  QFile file("/sys/class/net/"+name+"/statistics/"+counter);
  if(!file.open(QIODevice::ReadOnly|QIODevice::Text))return QStringLiteral("Unavailable");
  bool ok=false;
- const quint64 bytes=QString::fromUtf8(file.readAll()).trimmed().toULongLong(&ok);
+ const quint64 bytes=QString::fromUtf8(file.read(128)).trimmed().toULongLong(&ok);
  return ok?trafficSize(bytes):QStringLiteral("Unavailable");
 }
 QString humanSize(qint64 bytes){if(bytes<=0)return QStringLiteral("—");return QString::number(double(bytes)/1073741824.0,'f',1)+QStringLiteral(" GiB");}
-void addRows(QTableWidget *t,const QStringList &cells){int r=t->rowCount();t->insertRow(r);for(int c=0;c<cells.size();++c){auto *item=new QTableWidgetItem(cells[c]);item->setToolTip(cells[c]);t->setItem(r,c,item);}}
+void addRows(QTableWidget *t,const QStringList &cells){if(t->rowCount()>=4096)return;int r=t->rowCount();t->insertRow(r);for(int c=0;c<cells.size();++c){auto *item=new QTableWidgetItem(cells[c]);item->setToolTip(cells[c]);t->setItem(r,c,item);}}
 void collectBlocks(const QJsonArray &arr,QTableWidget *t,const QString &parent=QString()){
- for(const auto &v:arr){const auto o=v.toObject();const QString type=o.value("type").toString();const QString name=o.value("name").toString();const QString path=o.value("path").toString();const QString model=o.value("model").toString().trimmed();const QString fs=o.value("fstype").toString();const QString mount=o.value("mountpoint").toString();const QString labelText=o.value("label").toString();const qint64 size=qint64(o.value("size").toDouble());
+ for(const auto &v:arr){if(t->rowCount()>=4096)return;const auto o=v.toObject();const QString type=o.value("type").toString();const QString name=o.value("name").toString();const QString path=o.value("path").toString();const QString model=o.value("model").toString().trimmed();const QString fs=o.value("fstype").toString();const QString mount=o.value("mountpoint").toString();const QString labelText=o.value("label").toString();const qint64 size=qint64(o.value("size").toDouble());
  const QString detail=type=="disk"?model:(labelText.isEmpty()?fs:(labelText+" · "+fs));
  addRows(t,{name,path,type,humanSize(size),detail,mount.isEmpty()?QStringLiteral("Not mounted"):mount});
  collectBlocks(o.value("children").toArray(),t,name);
  }
 }
 void refreshBlockDevices(QTableWidget *t){
- QProcess proc;proc.start(QStringLiteral("lsblk"),{QStringLiteral("-J"),QStringLiteral("-b"),QStringLiteral("-o"),QStringLiteral("NAME,PATH,TYPE,SIZE,FSTYPE,LABEL,MOUNTPOINT,MODEL")});
- if(!proc.waitForStarted(1000)||!proc.waitForFinished(2500)||proc.exitCode()!=0){t->setRowCount(0);addRows(t,{QStringLiteral("lsblk unavailable"),QString(),QString(),QString(),QString(),QString()});return;}
- QJsonParseError err;auto doc=QJsonDocument::fromJson(proc.readAllStandardOutput(),&err);t->setRowCount(0);if(err.error==QJsonParseError::NoError)collectBlocks(doc.object().value("blockdevices").toArray(),t);
+ // Use the trusted util-linux executable, not an executable supplied via PATH.
+ QProcess proc;
+ proc.setProgram(QStringLiteral("/usr/bin/lsblk"));
+ proc.setArguments({QStringLiteral("-J"),QStringLiteral("-b"),QStringLiteral("-o"),QStringLiteral("NAME,PATH,TYPE,SIZE,FSTYPE,LABEL,MOUNTPOINT,MODEL")});
+ proc.setProcessChannelMode(QProcess::SeparateChannels);
+ proc.start();
+ const bool started=proc.waitForStarted(1000);
+ const bool finished=started && proc.waitForFinished(2500);
+ if(started && !finished){proc.kill();proc.waitForFinished(1000);}
+ QByteArray output;
+ if(finished && proc.exitStatus()==QProcess::NormalExit && proc.exitCode()==0)
+  output=proc.readAllStandardOutput();
+ t->setRowCount(0);
+ if(output.isEmpty() || output.size()>1024*1024){
+  addRows(t,{QStringLiteral("lsblk unavailable or output limit exceeded"),QString(),QString(),QString(),QString(),QString()});return;
+ }
+ QJsonParseError err;const auto doc=QJsonDocument::fromJson(output,&err);
+ if(err.error==QJsonParseError::NoError && doc.isObject())collectBlocks(doc.object().value("blockdevices").toArray(),t);
+ else addRows(t,{QStringLiteral("Invalid lsblk output"),QString(),QString(),QString(),QString(),QString()});
 }
 QLabel *detailLine(const QString &name,const QString &value){auto *l=new QLabel(QStringLiteral("<b>%1</b>  %2").arg(name.toHtmlEscaped(),value.toHtmlEscaped()));l->setTextFormat(Qt::RichText);l->setWordWrap(true);l->setTextInteractionFlags(Qt::TextSelectableByMouse);return l;}
 QLabel *label(const QString &text,const QString &kind="") {
@@ -317,7 +333,7 @@ MainWindow::MainWindow(QWidget *parent):QMainWindow(parent) {
  QVBoxLayout *aboutLayout;auto *about=page(aboutLayout,i18n("About Jatayu Pulse"),i18n("A native system monitoring application built for JatayuOS"));
  QVBoxLayout *aboutPanelLayout;auto *aboutPanel=panel(aboutPanelLayout);
  auto *hero=new QHBoxLayout;auto *heroIcon=new QLabel;heroIcon->setPixmap(windowIcon().pixmap(QSize(72,72)));hero->addWidget(heroIcon);auto *heroText=new QVBoxLayout;heroText->addWidget(label("Jatayu Pulse","value"));heroText->addWidget(label("Native monitoring for JatayuOS","muted"));hero->addLayout(heroText);hero->addStretch();aboutPanelLayout->addLayout(hero);aboutPanelLayout->addWidget(detailLine("Creator","Anup Kumar Yadav"));
- aboutPanelLayout->addWidget(detailLine("Version","1.0.0 — Stable"));
+ aboutPanelLayout->addWidget(detailLine("Version","1.0.1 — Security maintenance"));
  aboutPanelLayout->addWidget(detailLine("Platform","JatayuOS Udaan · Debian 13 · KDE Plasma 6"));
  aboutPanelLayout->addWidget(detailLine("Technology","C++17 · Qt 6 Widgets · KDE Frameworks 6"));
  aboutPanelLayout->addWidget(detailLine("License","GNU General Public License v3.0 or later (GPL-3.0-or-later)"));
