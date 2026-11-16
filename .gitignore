@@ -1,0 +1,9 @@
+build/
+cmake-build-*/
+*.deb
+*.o
+*.so
+*.a
+CMakeFiles/
+CMakeCache.txt
+.ninja_*
