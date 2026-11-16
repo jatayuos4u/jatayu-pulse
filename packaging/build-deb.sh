@@ -10,7 +10,7 @@ if [[ ! "$JATAYU_MAINTAINER_EMAIL" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:
  echo 'Invalid JATAYU_MAINTAINER_EMAIL' >&2; exit 1
 fi
 arch="$(dpkg-architecture -qDEB_HOST_ARCH)"
-version=1.0.0-1
+version=1.0.1-1
 builddir="$(mktemp -d)"
 trap 'rm -rf "$builddir"' EXIT
 cmake -S . -B "$builddir/build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DCMAKE_INSTALL_PREFIX=/usr
@@ -49,7 +49,7 @@ Section: utils
 Priority: optional
 Architecture: $arch
 Maintainer: Anup Kumar Yadav <$JATAYU_MAINTAINER_EMAIL>
-Depends: $deps
+Depends: $deps, util-linux
 Homepage: https://jatayuos.in
 Description: Jatayu Pulse native system monitor for JatayuOS
  Read-only dashboard for CPU, RAM, thermal sensors, storage,

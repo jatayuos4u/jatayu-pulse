@@ -1,15 +1,16 @@
 name: Build and publish Jatayu Pulse
 on:
+  pull_request:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  debian-13-amd64:
+  build-and-test:
     runs-on: ubuntu-24.04
     container:
       image: debian:trixie
@@ -22,29 +23,55 @@ jobs:
             qt6-base-dev libkf6coreaddons-dev libkf6i18n-dev \
             dpkg-dev libgl1-mesa-dev libxkbcommon-dev
 
-      - name: Check out tagged sources
-        uses: actions/checkout@v4
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Compile, run tests and build Debian package
+      - name: Build and run unit tests
         env:
           JATAYU_MAINTAINER_EMAIL: contact@jatayuos.in
         run: |
           bash packaging/build-deb.sh
+          dpkg-deb --info ./*.deb
+          sha256sum ./*.deb > SHA256SUMS
 
-      - name: Validate package and checksums
+      - name: Upload validated package as build artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: jatayu-debian-package
+          path: |
+            jatayu-system-monitor_*.deb
+            SHA256SUMS
+          if-no-files-found: error
+
+  publish-release:
+    needs: build-and-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download validated release artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: jatayu-debian-package
+
+      - name: Confirm package matches tag
+        shell: bash
         run: |
-          dpkg-deb --info jatayu-system-monitor_1.0.0-1_amd64.deb
-          dpkg-deb --contents jatayu-system-monitor_1.0.0-1_amd64.deb
-          sha256sum jatayu-system-monitor_1.0.0-1_amd64.deb > SHA256SUMS
+          set -euo pipefail
+          package=(jatayu-system-monitor_*.deb)
+          test "${#package[@]}" -eq 1
+          actual="$(dpkg-deb -f "${package[0]}" Version)"
+          test "v${actual%%-*}" = "${GITHUB_REF_NAME}"
+          sha256sum --check SHA256SUMS
 
       - name: Publish GitHub stable release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          name: Jatayu Pulse v1.0.0 Stable
+          name: Jatayu Pulse ${{ github.ref_name }} Stable
           draft: false
           prerelease: false
           generate_release_notes: true
           files: |
-            jatayu-system-monitor_1.0.0-1_amd64.deb
+            jatayu-system-monitor_*.deb
             SHA256SUMS

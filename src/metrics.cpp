@@ -7,7 +7,7 @@
 #include <limits>
 
 namespace {
-QString readFile(const QString &path) { QFile f(path); if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return {}; return QString::fromUtf8(f.readAll()); }
+QString readFile(const QString &path) { QFile f(path); if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return {}; return QString::fromUtf8(f.read(256 * 1024)); }
 }
 namespace Metrics {
 CpuTimes parseCpu(const QString &line) {
@@ -55,7 +55,9 @@ QString uptime() {bool ok=false; const double seconds=readFile("/proc/uptime").s
 QVector<ProcessInfo> processes(int maxCount) {
  QVector<ProcessInfo> out;
  QDir proc("/proc");
+ int scanned = 0;
  for(const auto &entry:proc.entryList(QDir::Dirs|QDir::NoDotAndDotDot)) {
+  if(++scanned > 16384) break;
   bool ok=false; int pid=entry.toInt(&ok); if(!ok) continue;
   const QString status=readFile(QString("/proc/%1/status").arg(pid)); if(status.isEmpty()) continue;
   ProcessInfo p; p.pid=pid;
