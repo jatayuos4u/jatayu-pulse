@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Jatayu Pulse
+Comment=Monitor CPU, memory, network, and processes
+Exec=jatayu-system-monitor
+Icon=jatayu-pulse
+Terminal=false
+Categories=System;Monitor;Qt;KDE;
+StartupNotify=true
