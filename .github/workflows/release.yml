@@ -1,0 +1,50 @@
+name: Build and publish Jatayu Pulse
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  debian-13-amd64:
+    runs-on: ubuntu-24.04
+    container:
+      image: debian:trixie
+    steps:
+      - name: Install Debian 13 build dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git build-essential cmake ninja-build \
+            qt6-base-dev libkf6coreaddons-dev libkf6i18n-dev \
+            dpkg-dev libgl1-mesa-dev libxkbcommon-dev
+
+      - name: Check out tagged sources
+        uses: actions/checkout@v4
+
+      - name: Compile, run tests and build Debian package
+        env:
+          JATAYU_MAINTAINER_EMAIL: contact@jatayuos.in
+        run: |
+          bash packaging/build-deb.sh
+
+      - name: Validate package and checksums
+        run: |
+          dpkg-deb --info jatayu-system-monitor_1.0.0-1_amd64.deb
+          dpkg-deb --contents jatayu-system-monitor_1.0.0-1_amd64.deb
+          sha256sum jatayu-system-monitor_1.0.0-1_amd64.deb > SHA256SUMS
+
+      - name: Publish GitHub stable release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Jatayu Pulse v1.0.0 Stable
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            jatayu-system-monitor_1.0.0-1_amd64.deb
+            SHA256SUMS
