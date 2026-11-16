@@ -6,6 +6,34 @@ Native read-only system monitor for JatayuOS Udaan 1.0, Debian 13 (Trixie), and 
 **Website:** https://jatayuos.in  
 **License:** GPL-3.0-or-later (see COPYING and LICENSE)
 
+## Download and install (Debian 13 / JatayuOS, AMD64)
+
+**[Download Jatayu Pulse v1.0.0 Stable (.deb)](https://github.com/jatayuos4u/jatayu-pulse/releases/download/v1.0.0/jatayu-system-monitor_1.0.0-1_amd64.deb)**  
+[View release notes and other downloads](https://github.com/jatayuos4u/jatayu-pulse/releases/tag/v1.0.0) · [SHA256 checksums](https://github.com/jatayuos4u/jatayu-pulse/releases/download/v1.0.0/SHA256SUMS)
+
+Open a terminal and run:
+
+```bash
+wget https://github.com/jatayuos4u/jatayu-pulse/releases/download/v1.0.0/jatayu-system-monitor_1.0.0-1_amd64.deb
+sudo apt install ./jatayu-system-monitor_1.0.0-1_amd64.deb
+```
+
+After installation, open **Jatayu Pulse** from the KDE application launcher or run:
+
+```bash
+jatayu-system-monitor
+```
+
+Verify the installed version:
+
+```bash
+dpkg-query -W -f='${Status} ${Version}\\n' jatayu-system-monitor
+```
+
+Expected: `install ok installed 1.0.0-1`.
+
+For an existing v0.9.0 or v1.0.0 RC1 installation, the same `sudo apt install ./...` command upgrades to stable. **This package is for 64-bit x86 (amd64) systems.**
+
 ## Features
 
 CPU and memory usage charts, processes, thermal sensors, storage/partition overview, network interfaces, system information, settings and About page. Sensors and storage health data are hardware- and permission-dependent; unavailable SMART readings are not fabricated.
@@ -46,19 +74,10 @@ jatayu-system-monitor
 
 Expected package version is `1.0.0-1`. Test the KDE launcher, icons, all pages, refresh settings and live monitoring. For an ISO release, additionally test on a fresh Debian 13 KDE Plasma 6 VM and confirm package dependencies resolve.
 
-## GitHub
+## Source code and releases
 
-Suggested repository: `https://github.com/jatayuos4u/jatayu-pulse` (create it first).
+- [Browse complete source code](https://github.com/jatayuos4u/jatayu-pulse)
+- [Official v1.0.0 stable release](https://github.com/jatayuos4u/jatayu-pulse/releases/tag/v1.0.0)
+- [Release build and automated tests](https://github.com/jatayuos4u/jatayu-pulse/actions)
 
-```bash
-git init
-git branch -M main
-git add .
-git commit -m "Release Jatayu Pulse v1.0.0"
-git remote add origin https://github.com/jatayuos4u/jatayu-pulse.git
-git push -u origin main
-git tag -a v1.0.0 -m "Jatayu Pulse 1.0.0 stable"
-git push origin v1.0.0
-```
-
-Do not commit the `build/` directory or `.deb` binary to Git; attach the built `.deb` and this source archive as GitHub Release assets instead.
+Do not commit the `build/` directory or `.deb` binary to Git; the release workflow publishes the Debian binary as a GitHub Release asset.
